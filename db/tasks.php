@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version info.
+ * Scheduled task definitions.
  *
  * @package    availability_dripcontent
  * @copyright  2024 Prepara Oposiciones
@@ -24,8 +24,14 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2024121701;
-$plugin->requires = 2024042200; // Moodle 4.4+
-$plugin->component = 'availability_dripcontent';
-$plugin->release = '1.1.0';
-$plugin->maturity = MATURITY_STABLE;
+$tasks = [
+    [
+        'classname' => 'availability_dripcontent\task\check_unlocks',
+        'blocking' => 0,
+        'minute' => '*/15',  // Every 15 minutes.
+        'hour' => '*',
+        'day' => '*',
+        'month' => '*',
+        'dayofweek' => '*',
+    ],
+];

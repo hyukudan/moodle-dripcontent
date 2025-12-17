@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version info.
+ * Message provider definitions.
  *
  * @package    availability_dripcontent
  * @copyright  2024 Prepara Oposiciones
@@ -24,8 +24,13 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2024121701;
-$plugin->requires = 2024042200; // Moodle 4.4+
-$plugin->component = 'availability_dripcontent';
-$plugin->release = '1.1.0';
-$plugin->maturity = MATURITY_STABLE;
+$messageproviders = [
+    // Notification sent when content becomes available.
+    'content_unlocked' => [
+        'capability' => 'moodle/course:isincompletionreports',
+        'defaults' => [
+            'popup' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+            'email' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+        ],
+    ],
+];

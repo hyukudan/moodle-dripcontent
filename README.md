@@ -8,25 +8,30 @@ A Moodle availability condition plugin that provides flexible content dripping b
 
 ## Features
 
-### Three Access Modes
+### Four Access Modes
 
 | Mode | Description | Use Case |
 |------|-------------|----------|
-| **Time in Course** | Days/months since first enrolment | Progressive course content |
-| **Active Subscription** | Only counts active (paid) periods | Subscription-based platforms |
-| **Date Range** | Between specific dates | Seasonal or event-based content |
+| **Time since enrolment** | Days/weeks/months since first enrolment | Progressive course content |
+| **Time since course start** | Days/weeks/months since course start date | Scheduled releases for all users |
+| **Active subscription** | Only counts active (paid) periods | Subscription-based platforms |
+| **Date range** | Between specific dates | Seasonal or event-based content |
 
-### Time Units
+### Three Time Units
 
 - **Days** - Fine-grained control for daily content releases
-- **Months** - Convenient for subscription tiers (1 month, 3 months, etc.)
+- **Weeks** - Convenient for weekly schedules
+- **Months** - Perfect for subscription tiers (1 month, 3 months, etc.)
 
 ### Key Capabilities
 
 - **Gap-aware calculation** - Subscription time excludes periods without active enrolment
 - **Overlap handling** - Multiple enrolment periods are merged correctly
 - **Status-aware** - Only counts `status=0` (active) enrolments
+- **Enrolment method filter** - Only count specific enrolment types (e.g., PayPal only)
+- **Remaining time display** - Shows users how long until content unlocks
 - **Flexible dates** - Support for "from only", "to only", or full date ranges
+- **Unlock notifications** - Email and/or platform notifications when content becomes available
 - **Multi-language** - English and Spanish included
 
 ## Installation
@@ -56,21 +61,31 @@ After installation, you should see "Drip Content" (or "Contenido gradual" in Spa
 2. Scroll to "Restrict access"
 3. Click "Add restriction..."
 4. Select "Drip Content"
-5. Configure your restriction:
+5. Configure your restriction
 
-### Mode: Time in Course
+### Mode: Time since Enrolment
 
-Unlocks content after X days/months since the user **first enrolled**.
+Unlocks content after X days/weeks/months since the user **first enrolled**.
 
 ```
-Example: "Available after 7 days in the course"
+Example: "Available after 7 days since enrolment"
 - User enrolls January 1st
 - Content available January 8th
 ```
 
+### Mode: Time since Course Start
+
+Unlocks content after X days/weeks/months since the **course start date**. Same for all users.
+
+```
+Example: "Available after 2 weeks since course start"
+- Course starts January 1st
+- Content available January 15th for ALL users
+```
+
 ### Mode: Active Subscription Time
 
-Unlocks content after X days/months of **active subscription only**.
+Unlocks content after X days/weeks/months of **active subscription only**.
 
 ```
 Example: "Available after 2 months of active subscription"
@@ -87,6 +102,13 @@ This mode is ideal for:
 - Pay-per-month access models
 - Membership sites with recurring billing
 
+#### Enrolment Method Filter
+
+For subscription mode, you can optionally filter by specific enrolment methods:
+- Only count PayPal enrolments
+- Only count Stripe enrolments
+- Exclude manual enrolments (VIP users)
+
 ### Mode: Date Range
 
 Content available only during specific dates.
@@ -98,6 +120,27 @@ Examples:
 - "Until December 31, 2025" (expiring content)
 ```
 
+## Notification System
+
+The plugin can notify users when content becomes available.
+
+### Configuration
+
+Go to **Site Administration > Plugins > Availability restrictions > Drip Content**
+
+| Setting | Description |
+|---------|-------------|
+| Enable notifications | Turn notifications on/off |
+| Notification method | Email only, Platform only, or Both |
+
+### How It Works
+
+1. A scheduled task runs every 15 minutes
+2. Checks all modules with dripcontent conditions
+3. For each enrolled user, checks if content is now available
+4. Sends notification if user hasn't been notified before
+5. Records notification to prevent duplicates
+
 ## Technical Details
 
 ### How Active Subscription Time Works
@@ -106,34 +149,24 @@ The plugin queries `mdl_user_enrolments` and calculates:
 
 1. **Fetches all enrolment periods** for the user in the course
 2. **Filters by status** - Only `status=0` (active) counts
-3. **Respects timeend** - If set, the period ends there
-4. **Merges overlaps** - Multiple concurrent enrolments don't double-count
-5. **Sums active time** - Total days of actual subscription
+3. **Filters by enrolment method** - If configured
+4. **Respects timeend** - If set, the period ends there
+5. **Merges overlaps** - Multiple concurrent enrolments don't double-count
+6. **Sums active time** - Total seconds of actual subscription
 
-```sql
--- Simplified query logic
-SELECT timestart, timeend, status
-FROM mdl_user_enrolments ue
-JOIN mdl_enrol e ON e.id = ue.enrolid
-WHERE e.courseid = ? AND ue.userid = ?
-```
-
-### Database Tables Used
+### Database Tables
 
 | Table | Purpose |
 |-------|---------|
 | `mdl_user_enrolments` | Enrolment periods (timestart, timeend, status) |
 | `mdl_enrol` | Enrolment methods per course |
+| `mdl_availability_dripcontent_ntf` | Tracks sent notifications |
 
-### Month Calculation
+### Time Calculations
 
-Months are calculated using PHP's `DateTime::modify()`:
-
-```php
-$date->modify('+3 months');
-```
-
-This handles varying month lengths correctly (28-31 days).
+- **Days**: `value * 86400 seconds`
+- **Weeks**: `value * 604800 seconds`
+- **Months**: PHP `DateTime::modify('+N months')` for accuracy
 
 ## Languages
 
@@ -159,20 +192,15 @@ Currently supported:
 | Feature | availability_days | availability_dripcontent |
 |---------|-------------------|-------------------------|
 | Days since enrolment | ✅ | ✅ |
-| Days since course start | ✅ | ❌ (planned) |
+| Days since course start | ✅ | ✅ |
+| Weeks support | ❌ | ✅ |
 | Months support | ❌ | ✅ |
 | Active subscription only | ❌ | ✅ |
+| Enrolment method filter | ❌ | ✅ |
 | Date ranges | ❌ | ✅ |
 | Gap-aware calculation | ❌ | ✅ |
-
-## Roadmap
-
-- [ ] Add "days since course start" mode
-- [ ] Admin settings for default values
-- [ ] Weeks as time unit
-- [ ] Integration with specific enrolment plugins (PayPal, Stripe)
-- [ ] Bulk apply restrictions to multiple activities
-- [ ] Report showing user progress/unlock timeline
+| Remaining time display | ❌ | ✅ |
+| Unlock notifications | ❌ | ✅ |
 
 ## Contributing
 

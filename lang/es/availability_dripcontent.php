@@ -33,21 +33,29 @@ $string['conditiontitle'] = 'Contenido gradual';
 
 // Mode selection.
 $string['mode'] = 'Modo';
-$string['mode_coursedays'] = 'Tiempo en el curso';
-$string['mode_coursedays_help'] = 'Cuenta los días/meses desde que el usuario se inscribió por primera vez en el curso.';
+$string['mode_coursedays'] = 'Tiempo desde inscripción';
+$string['mode_coursedays_help'] = 'Cuenta los días/semanas/meses desde que el usuario se inscribió por primera vez en el curso.';
+$string['mode_coursestartdays'] = 'Tiempo desde inicio del curso';
+$string['mode_coursestartdays_help'] = 'Cuenta los días/semanas/meses desde la fecha de inicio del curso. Igual para todos los usuarios.';
 $string['mode_subscriptiondays'] = 'Tiempo de suscripción activa';
-$string['mode_subscriptiondays_help'] = 'Solo cuenta los días/meses cuando el usuario tiene una inscripción activa (pagada). Los períodos sin suscripción no se cuentan.';
+$string['mode_subscriptiondays_help'] = 'Solo cuenta los días/semanas/meses cuando el usuario tiene una inscripción activa (pagada). Los períodos sin suscripción no se cuentan.';
 $string['mode_daterange'] = 'Rango de fechas';
 $string['mode_daterange_help'] = 'Disponible entre fechas específicas.';
 
 // Unit selection.
 $string['unit'] = 'Unidad';
 $string['unit_days'] = 'Días';
+$string['unit_weeks'] = 'Semanas';
 $string['unit_months'] = 'Meses';
 
 // Value input.
 $string['value'] = 'Valor';
 $string['aftervalue'] = 'Después de {$a->value} {$a->unit}';
+
+// Enrolment methods filter.
+$string['enrolmentmethods'] = 'Métodos de inscripción';
+$string['enrolmentmethods_help'] = 'Solo contar tiempo de estos métodos de inscripción. Dejar vacío para contar todos los métodos.';
+$string['allenrolmentmethods'] = 'Todos los métodos de inscripción';
 
 // Date range.
 $string['fromdate'] = 'Desde fecha';
@@ -56,25 +64,88 @@ $string['betweendates'] = 'Entre {$a->from} y {$a->to}';
 $string['afterdate'] = 'Después de {$a->from}';
 $string['beforedate'] = 'Antes de {$a->to}';
 
-// Descriptions.
-$string['full_days_course'] = 'Disponible después de {$a} día(s) en el curso';
-$string['full_months_course'] = 'Disponible después de {$a} mes(es) en el curso';
+// Full descriptions - Enrolment mode.
+$string['full_days_enrolment'] = 'Disponible después de {$a} día(s) desde la inscripción';
+$string['full_weeks_enrolment'] = 'Disponible después de {$a} semana(s) desde la inscripción';
+$string['full_months_enrolment'] = 'Disponible después de {$a} mes(es) desde la inscripción';
+
+// Full descriptions - Course start mode.
+$string['full_days_coursestart'] = 'Disponible después de {$a} día(s) desde el inicio del curso';
+$string['full_weeks_coursestart'] = 'Disponible después de {$a} semana(s) desde el inicio del curso';
+$string['full_months_coursestart'] = 'Disponible después de {$a} mes(es) desde el inicio del curso';
+
+// Full descriptions - Subscription mode.
 $string['full_days_subscription'] = 'Disponible después de {$a} día(s) de suscripción activa';
+$string['full_weeks_subscription'] = 'Disponible después de {$a} semana(s) de suscripción activa';
 $string['full_months_subscription'] = 'Disponible después de {$a} mes(es) de suscripción activa';
+
+// Full descriptions - Date range.
 $string['full_daterange'] = 'Disponible desde {$a->from} hasta {$a->to}';
 $string['full_afterdate'] = 'Disponible después del {$a}';
 $string['full_beforedate'] = 'Disponible hasta el {$a}';
 
-$string['short_days_course'] = 'Después de {$a} días en el curso';
-$string['short_months_course'] = 'Después de {$a} meses en el curso';
+// Short descriptions - Enrolment mode.
+$string['short_days_enrolment'] = 'Después de {$a} días inscrito';
+$string['short_weeks_enrolment'] = 'Después de {$a} semanas inscrito';
+$string['short_months_enrolment'] = 'Después de {$a} meses inscrito';
+
+// Short descriptions - Course start mode.
+$string['short_days_coursestart'] = 'Después de {$a} días del inicio';
+$string['short_weeks_coursestart'] = 'Después de {$a} semanas del inicio';
+$string['short_months_coursestart'] = 'Después de {$a} meses del inicio';
+
+// Short descriptions - Subscription mode.
 $string['short_days_subscription'] = 'Después de {$a} días suscrito';
+$string['short_weeks_subscription'] = 'Después de {$a} semanas suscrito';
 $string['short_months_subscription'] = 'Después de {$a} meses suscrito';
+
+// Short descriptions - Date range.
 $string['short_daterange'] = '{$a->from} - {$a->to}';
+$string['short_afterdate'] = 'Después del {$a}';
+$string['short_beforedate'] = 'Hasta el {$a}';
+
+// Remaining time strings.
+$string['remaining_months'] = 'Faltan {$a} mes(es)';
+$string['remaining_months_days'] = 'Faltan {$a->months} mes(es) y {$a->days} día(s)';
+$string['remaining_days'] = 'Faltan {$a} día(s)';
+$string['remaining_days_hours'] = 'Faltan {$a->days} día(s) y {$a->hours} hora(s)';
+$string['remaining_hours'] = 'Faltan {$a} hora(s)';
+$string['remaining_weeks'] = 'Faltan {$a} semana(s)';
 
 // Error messages.
 $string['error_invalidvalue'] = 'Por favor, introduce un número válido.';
 $string['error_invaliddate'] = 'Por favor, selecciona una fecha válida.';
 $string['error_dateorder'] = 'La fecha "Desde" debe ser anterior a la fecha "Hasta".';
 
+// Admin settings.
+$string['settings'] = 'Configuración de Contenido gradual';
+$string['settings_notifications'] = 'Configuración de notificaciones';
+$string['settings_notifications_desc'] = 'Configura cómo se notifica a los usuarios cuando el contenido está disponible.';
+$string['notify_enabled'] = 'Activar notificaciones de desbloqueo';
+$string['notify_enabled_desc'] = 'Enviar notificaciones a los usuarios cuando el contenido esté disponible para ellos.';
+$string['notify_method'] = 'Método de notificación';
+$string['notify_method_desc'] = 'Elige cómo notificar a los usuarios cuando se desbloquea el contenido.';
+$string['notify_method_none'] = 'Sin notificaciones';
+$string['notify_method_email'] = 'Solo correo electrónico';
+$string['notify_method_popup'] = 'Solo notificación en la plataforma';
+$string['notify_method_both'] = 'Correo electrónico y notificación en la plataforma';
+
+// Notification messages.
+$string['notification_subject'] = 'Nuevo contenido disponible: {$a->activityname}';
+$string['notification_body'] = 'Hola {$a->username},
+
+El siguiente contenido ya está disponible en el curso "{$a->coursename}":
+
+{$a->activityname}
+
+Haz clic aquí para acceder: {$a->url}
+
+Un saludo,
+{$a->sitename}';
+$string['notification_small'] = 'Contenido "{$a->activityname}" ya disponible';
+
 // Privacy.
 $string['privacy:metadata'] = 'La condición de disponibilidad de Contenido gradual no almacena ningún dato personal.';
+
+// Task.
+$string['task_check_unlocks'] = 'Comprobar desbloqueos de contenido y enviar notificaciones';

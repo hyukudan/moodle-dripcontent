@@ -45,14 +45,18 @@ class frontend extends \core_availability\frontend {
             'conditiontitle',
             'mode',
             'mode_coursedays',
+            'mode_coursestartdays',
             'mode_subscriptiondays',
             'mode_daterange',
             'unit',
             'unit_days',
+            'unit_weeks',
             'unit_months',
             'value',
             'fromdate',
             'todate',
+            'enrolmentmethods',
+            'allenrolmentmethods',
             'error_invalidvalue',
             'error_invaliddate',
             'error_dateorder',
@@ -68,16 +72,39 @@ class frontend extends \core_availability\frontend {
      * @return array Array of parameters.
      */
     protected function get_javascript_init_params($course, \cm_info $cm = null, \section_info $section = null) {
+        global $DB;
+
+        // Get available enrolment methods for this course.
+        $enrolmethods = [];
+        $instances = enrol_get_instances($course->id, true);
+        foreach ($instances as $instance) {
+            $plugin = enrol_get_plugin($instance->enrol);
+            if ($plugin) {
+                $enrolmethods[$instance->enrol] = $plugin->get_instance_name($instance);
+            }
+        }
+
+        // Also get all known enrol plugins for flexibility.
+        $allplugins = enrol_get_plugins(true);
+        foreach ($allplugins as $name => $plugin) {
+            if (!isset($enrolmethods[$name])) {
+                $enrolmethods[$name] = get_string('pluginname', 'enrol_' . $name);
+            }
+        }
+
         return [
             'modes' => [
                 condition::MODE_COURSEDAYS,
+                condition::MODE_COURSESTARTDAYS,
                 condition::MODE_SUBSCRIPTIONDAYS,
                 condition::MODE_DATERANGE,
             ],
             'units' => [
                 condition::UNIT_DAYS,
+                condition::UNIT_WEEKS,
                 condition::UNIT_MONTHS,
             ],
+            'enrolmentmethods' => $enrolmethods,
         ];
     }
 

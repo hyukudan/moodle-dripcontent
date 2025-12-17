@@ -10,6 +10,9 @@
  * @class availability_dripcontent/form
  */
 const Form = {
+    /** @var {Object} Enrolment methods available */
+    enrolmentMethods: {},
+
     /**
      * Initializes the form.
      * Called by the availability system when setting up the condition UI.
@@ -20,6 +23,7 @@ const Form = {
         // Store parameters from PHP.
         this.modes = M.availability_dripcontent.modes;
         this.units = M.availability_dripcontent.units;
+        this.enrolmentMethods = M.availability_dripcontent.enrolmentmethods || {};
     },
 
     /**
@@ -38,9 +42,10 @@ const Form = {
         const value = json.value || 1;
         const fromdate = json.fromdate || '';
         const todate = json.todate || '';
+        const enrolmentmethods = json.enrolmentmethods || [];
 
         // Build the form using DOM methods.
-        this.buildForm(node, mode, unit, value, fromdate, todate);
+        this.buildForm(node, mode, unit, value, fromdate, todate, enrolmentmethods);
 
         // Set up event listeners.
         this.setupEventListeners(node);
@@ -66,11 +71,11 @@ const Form = {
         }
 
         const label = document.createElement('label');
-        label.className = 'col-sm-3 col-form-label';
+        label.className = 'col-sm-4 col-form-label';
         label.textContent = labelText;
 
         const contentDiv = document.createElement('div');
-        contentDiv.className = 'col-sm-9';
+        contentDiv.className = 'col-sm-8';
 
         row.appendChild(label);
         row.appendChild(contentDiv);
@@ -103,6 +108,42 @@ const Form = {
     },
 
     /**
+     * Create a multi-select element for enrolment methods.
+     *
+     * @param {string} className CSS class name
+     * @param {Array} selectedMethods Currently selected methods
+     * @return {HTMLSelectElement} The select element
+     */
+    createMultiSelect: function(className, selectedMethods) {
+        const select = document.createElement('select');
+        select.className = 'form-control ' + className;
+        select.multiple = true;
+        select.size = 4;
+
+        // Add "All methods" option.
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = M.util.get_string('allenrolmentmethods', 'availability_dripcontent');
+        if (!selectedMethods || selectedMethods.length === 0) {
+            allOption.selected = true;
+        }
+        select.appendChild(allOption);
+
+        // Add each enrolment method.
+        Object.entries(this.enrolmentMethods).forEach(([key, name]) => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = name;
+            if (selectedMethods && selectedMethods.includes(key)) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+
+        return select;
+    },
+
+    /**
      * Build the form using safe DOM methods.
      *
      * @param {HTMLElement} node Parent node
@@ -111,8 +152,9 @@ const Form = {
      * @param {number} value Current value
      * @param {number|string} fromdate From date timestamp
      * @param {number|string} todate To date timestamp
+     * @param {Array} enrolmentmethods Selected enrolment methods
      */
-    buildForm: function(node, mode, unit, value, fromdate, todate) {
+    buildForm: function(node, mode, unit, value, fromdate, todate, enrolmentmethods) {
         // Convert timestamps to date strings for input.
         const fromdateStr = fromdate ? this.timestampToDateString(fromdate) : '';
         const todateStr = todate ? this.timestampToDateString(todate) : '';
@@ -123,19 +165,36 @@ const Form = {
             ''
         );
         const modeSelect = this.createSelect('dripcontent-mode', [
-            {value: 'coursedays', text: M.util.get_string('mode_coursedays', 'availability_dripcontent'), selected: mode === 'coursedays'},
-            {value: 'subscriptiondays', text: M.util.get_string('mode_subscriptiondays', 'availability_dripcontent'), selected: mode === 'subscriptiondays'},
-            {value: 'daterange', text: M.util.get_string('mode_daterange', 'availability_dripcontent'), selected: mode === 'daterange'}
+            {
+                value: 'coursedays',
+                text: M.util.get_string('mode_coursedays', 'availability_dripcontent'),
+                selected: mode === 'coursedays'
+            },
+            {
+                value: 'coursestartdays',
+                text: M.util.get_string('mode_coursestartdays', 'availability_dripcontent'),
+                selected: mode === 'coursestartdays'
+            },
+            {
+                value: 'subscriptiondays',
+                text: M.util.get_string('mode_subscriptiondays', 'availability_dripcontent'),
+                selected: mode === 'subscriptiondays'
+            },
+            {
+                value: 'daterange',
+                text: M.util.get_string('mode_daterange', 'availability_dripcontent'),
+                selected: mode === 'daterange'
+            }
         ]);
         modeRow.contentDiv.appendChild(modeSelect);
         node.appendChild(modeRow.row);
 
-        // Value + Unit row (for coursedays and subscriptiondays modes).
+        // Value + Unit row (for time-based modes).
         const valueRow = document.createElement('div');
         valueRow.className = 'form-group row mb-2 dripcontent-timevalue';
 
         const valueLabel = document.createElement('label');
-        valueLabel.className = 'col-sm-3 col-form-label';
+        valueLabel.className = 'col-sm-4 col-form-label';
         valueLabel.textContent = M.util.get_string('value', 'availability_dripcontent');
 
         const valueInputDiv = document.createElement('div');
@@ -148,10 +207,23 @@ const Form = {
         valueInputDiv.appendChild(valueInput);
 
         const unitSelectDiv = document.createElement('div');
-        unitSelectDiv.className = 'col-sm-5';
+        unitSelectDiv.className = 'col-sm-4';
         const unitSelect = this.createSelect('dripcontent-unit', [
-            {value: 'days', text: M.util.get_string('unit_days', 'availability_dripcontent'), selected: unit === 'days'},
-            {value: 'months', text: M.util.get_string('unit_months', 'availability_dripcontent'), selected: unit === 'months'}
+            {
+                value: 'days',
+                text: M.util.get_string('unit_days', 'availability_dripcontent'),
+                selected: unit === 'days'
+            },
+            {
+                value: 'weeks',
+                text: M.util.get_string('unit_weeks', 'availability_dripcontent'),
+                selected: unit === 'weeks'
+            },
+            {
+                value: 'months',
+                text: M.util.get_string('unit_months', 'availability_dripcontent'),
+                selected: unit === 'months'
+            }
         ]);
         unitSelectDiv.appendChild(unitSelect);
 
@@ -159,6 +231,23 @@ const Form = {
         valueRow.appendChild(valueInputDiv);
         valueRow.appendChild(unitSelectDiv);
         node.appendChild(valueRow);
+
+        // Enrolment methods row (for subscription mode).
+        const enrolRow = this.createFormRow(
+            M.util.get_string('enrolmentmethods', 'availability_dripcontent'),
+            'dripcontent-enrolmethods'
+        );
+        enrolRow.row.style.display = 'none';
+        const enrolSelect = this.createMultiSelect('dripcontent-enrolmentmethods', enrolmentmethods);
+        enrolRow.contentDiv.appendChild(enrolSelect);
+
+        // Add help text.
+        const helpText = document.createElement('small');
+        helpText.className = 'form-text text-muted';
+        helpText.textContent = M.util.get_string('enrolmentmethods_help', 'availability_dripcontent');
+        enrolRow.contentDiv.appendChild(helpText);
+
+        node.appendChild(enrolRow.row);
 
         // From date row (for daterange mode).
         const fromRow = this.createFormRow(
@@ -223,6 +312,7 @@ const Form = {
         const unitSelect = node.querySelector('.dripcontent-unit');
         const fromdateInput = node.querySelector('.dripcontent-fromdate');
         const todateInput = node.querySelector('.dripcontent-todate');
+        const enrolSelect = node.querySelector('.dripcontent-enrolmentmethods');
 
         // Mode change - update visibility.
         modeSelect.addEventListener('change', () => {
@@ -243,6 +333,9 @@ const Form = {
         todateInput.addEventListener('change', () => {
             M.core_availability.form.update();
         });
+        enrolSelect.addEventListener('change', () => {
+            M.core_availability.form.update();
+        });
     },
 
     /**
@@ -254,14 +347,23 @@ const Form = {
     updateVisibility: function(node, mode) {
         const timeValueRow = node.querySelector('.dripcontent-timevalue');
         const daterangeRows = node.querySelectorAll('.dripcontent-daterange');
+        const enrolRow = node.querySelector('.dripcontent-enrolmethods');
 
         if (mode === 'daterange') {
             timeValueRow.style.display = 'none';
+            enrolRow.style.display = 'none';
             daterangeRows.forEach(row => {
                 row.style.display = 'flex';
             });
+        } else if (mode === 'subscriptiondays') {
+            timeValueRow.style.display = 'flex';
+            enrolRow.style.display = 'flex';
+            daterangeRows.forEach(row => {
+                row.style.display = 'none';
+            });
         } else {
             timeValueRow.style.display = 'flex';
+            enrolRow.style.display = 'none';
             daterangeRows.forEach(row => {
                 row.style.display = 'none';
             });
@@ -280,6 +382,7 @@ const Form = {
         const unitSelect = node.querySelector('.dripcontent-unit');
         const fromdateInput = node.querySelector('.dripcontent-fromdate');
         const todateInput = node.querySelector('.dripcontent-todate');
+        const enrolSelect = node.querySelector('.dripcontent-enrolmentmethods');
 
         if (json.mode) {
             modeSelect.value = json.mode;
@@ -295,6 +398,12 @@ const Form = {
         }
         if (json.todate) {
             todateInput.value = this.timestampToDateString(json.todate);
+        }
+        if (json.enrolmentmethods && json.enrolmentmethods.length > 0) {
+            // Clear all selections first.
+            Array.from(enrolSelect.options).forEach(opt => {
+                opt.selected = json.enrolmentmethods.includes(opt.value);
+            });
         }
 
         this.updateVisibility(node, modeSelect.value);
@@ -358,6 +467,18 @@ const Form = {
         } else {
             result.unit = node.querySelector('.dripcontent-unit').value;
             result.value = parseInt(node.querySelector('.dripcontent-value').value) || 0;
+
+            // For subscription mode, include enrolment methods if selected.
+            if (mode === 'subscriptiondays') {
+                const enrolSelect = node.querySelector('.dripcontent-enrolmentmethods');
+                const selectedMethods = Array.from(enrolSelect.selectedOptions)
+                    .map(opt => opt.value)
+                    .filter(val => val !== ''); // Filter out "All methods" option
+
+                if (selectedMethods.length > 0) {
+                    result.enrolmentmethods = selectedMethods;
+                }
+            }
         }
 
         return result;
