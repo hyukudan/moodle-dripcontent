@@ -218,9 +218,7 @@ See [LICENSE](https://www.gnu.org/licenses/gpl-3.0.html) for details.
 
 ## Credits
 
-Developed by [Prepara Oposiciones](https://preparaoposiciones.es)
-
-Inspired by [availability_days](https://moodle.org/plugins/availability_days) by Valery Fremaux.
+Developed by [hyukudan](https://github.com/hyukudan)
 
 ---
 
