@@ -1,3 +1,5 @@
+YUI.add('moodle-availability_dripcontent-form', function (Y, NAME) {
+
 /**
  * JavaScript for form editing dripcontent conditions.
  *
@@ -289,3 +291,6 @@ M.availability_dripcontent.form.fillErrors = function(errors, node) {
         }
     }
 };
+
+
+}, '@VERSION@', {"requires": ["base", "node", "event", "moodle-core_availability-form"]});
