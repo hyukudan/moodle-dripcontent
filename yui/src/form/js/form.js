@@ -22,12 +22,10 @@ M.availability_dripcontent.form.enrolmentMethods = {};
  * Initialises this plugin.
  *
  * @method initInner
- * @param {Object} params Parameters from PHP (modes, units, enrolmentmethods)
+ * @param {Object} enrolmentmethods Enrolment methods available in course
  */
-M.availability_dripcontent.form.initInner = function(params) {
-    this.modes = params.modes;
-    this.units = params.units;
-    this.enrolmentMethods = params.enrolmentmethods || {};
+M.availability_dripcontent.form.initInner = function(enrolmentmethods) {
+    this.enrolmentMethods = enrolmentmethods || {};
 };
 
 /**

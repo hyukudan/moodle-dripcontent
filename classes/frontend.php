@@ -92,20 +92,8 @@ class frontend extends \core_availability\frontend {
             }
         }
 
-        return [
-            'modes' => [
-                condition::MODE_COURSEDAYS,
-                condition::MODE_COURSESTARTDAYS,
-                condition::MODE_SUBSCRIPTIONDAYS,
-                condition::MODE_DATERANGE,
-            ],
-            'units' => [
-                condition::UNIT_DAYS,
-                condition::UNIT_WEEKS,
-                condition::UNIT_MONTHS,
-            ],
-            'enrolmentmethods' => $enrolmethods,
-        ];
+        // Return as indexed array - each element becomes a parameter to initInner.
+        return [$enrolmethods];
     }
 
     /**
