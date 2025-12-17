@@ -145,7 +145,17 @@ Un saludo,
 $string['notification_small'] = 'Contenido "{$a->activityname}" ya disponible';
 
 // Privacy.
-$string['privacy:metadata'] = 'La condición de disponibilidad de Contenido gradual no almacena ningún dato personal.';
+$string['privacy:metadata:availability_dripcontent_ntf'] = 'El plugin de Contenido gradual almacena información sobre qué usuarios han sido notificados de los desbloqueos de contenido.';
+$string['privacy:metadata:availability_dripcontent_ntf:userid'] = 'El ID del usuario que fue notificado.';
+$string['privacy:metadata:availability_dripcontent_ntf:cmid'] = 'El ID del módulo del curso que fue desbloqueado.';
+$string['privacy:metadata:availability_dripcontent_ntf:timecreated'] = 'El momento en que se envió la notificación.';
+
+// Maintenance settings.
+$string['settings_maintenance'] = 'Configuración de mantenimiento';
+$string['settings_maintenance_desc'] = 'Configura la limpieza automática de registros de notificaciones antiguos.';
+$string['notification_retention'] = 'Retención de notificaciones (días)';
+$string['notification_retention_desc'] = 'Número de días para mantener los registros de notificaciones. Establece 0 para mantener todos los registros indefinidamente. Por defecto son 90 días.';
 
 // Task.
 $string['task_check_unlocks'] = 'Comprobar desbloqueos de contenido y enviar notificaciones';
+$string['task_cleanup_notifications'] = 'Limpiar registros de notificaciones antiguos';

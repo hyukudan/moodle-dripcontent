@@ -55,4 +55,20 @@ if ($ADMIN->fulltree) {
         'both',
         $notifymethods
     ));
+
+    // Maintenance settings header.
+    $settings->add(new admin_setting_heading(
+        'availability_dripcontent/maintenanceheader',
+        get_string('settings_maintenance', 'availability_dripcontent'),
+        get_string('settings_maintenance_desc', 'availability_dripcontent')
+    ));
+
+    // Notification retention period.
+    $settings->add(new admin_setting_configtext(
+        'availability_dripcontent/notification_retention',
+        get_string('notification_retention', 'availability_dripcontent'),
+        get_string('notification_retention_desc', 'availability_dripcontent'),
+        90,
+        PARAM_INT
+    ));
 }

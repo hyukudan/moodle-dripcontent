@@ -73,6 +73,21 @@ class condition extends \core_availability\condition {
     /** Seconds per week */
     const WEEKSECS = 604800;
 
+    /** @var array Valid modes */
+    const VALID_MODES = [
+        self::MODE_COURSEDAYS,
+        self::MODE_COURSESTARTDAYS,
+        self::MODE_SUBSCRIPTIONDAYS,
+        self::MODE_DATERANGE,
+    ];
+
+    /** @var array Valid units */
+    const VALID_UNITS = [
+        self::UNIT_DAYS,
+        self::UNIT_WEEKS,
+        self::UNIT_MONTHS,
+    ];
+
     /**
      * Constructor.
      *
@@ -80,12 +95,27 @@ class condition extends \core_availability\condition {
      * @throws \coding_exception If invalid data structure.
      */
     public function __construct($structure) {
-        $this->mode = $structure->mode ?? self::MODE_COURSEDAYS;
-        $this->unit = $structure->unit ?? self::UNIT_DAYS;
-        $this->value = isset($structure->value) ? (int)$structure->value : 0;
-        $this->fromdate = isset($structure->fromdate) ? (int)$structure->fromdate : null;
-        $this->todate = isset($structure->todate) ? (int)$structure->todate : null;
-        $this->enrolmentmethods = isset($structure->enrolmentmethods) ? $structure->enrolmentmethods : null;
+        // Validate and set mode with fallback.
+        $mode = $structure->mode ?? self::MODE_COURSEDAYS;
+        $this->mode = in_array($mode, self::VALID_MODES, true) ? $mode : self::MODE_COURSEDAYS;
+
+        // Validate and set unit with fallback.
+        $unit = $structure->unit ?? self::UNIT_DAYS;
+        $this->unit = in_array($unit, self::VALID_UNITS, true) ? $unit : self::UNIT_DAYS;
+
+        // Validate value (must be non-negative integer).
+        $this->value = isset($structure->value) ? max(0, (int)$structure->value) : 0;
+
+        // Validate dates (must be positive timestamps or null).
+        $this->fromdate = isset($structure->fromdate) && $structure->fromdate > 0
+            ? (int)$structure->fromdate : null;
+        $this->todate = isset($structure->todate) && $structure->todate > 0
+            ? (int)$structure->todate : null;
+
+        // Validate enrolment methods array.
+        $this->enrolmentmethods = isset($structure->enrolmentmethods) && is_array($structure->enrolmentmethods)
+            ? array_filter($structure->enrolmentmethods, 'is_string')
+            : null;
     }
 
     /**
@@ -377,8 +407,12 @@ class condition extends \core_availability\condition {
      * @return array Merged periods.
      */
     protected function merge_periods(array $periods) {
+        // Early return for empty or single period.
         if (empty($periods)) {
             return [];
+        }
+        if (count($periods) === 1) {
+            return $periods;
         }
 
         // Sort by start time.
@@ -388,8 +422,9 @@ class condition extends \core_availability\condition {
 
         $merged = [];
         $current = $periods[0];
+        $count = count($periods);
 
-        for ($i = 1; $i < count($periods); $i++) {
+        for ($i = 1; $i < $count; $i++) {
             if ($periods[$i]['start'] <= $current['end']) {
                 // Overlapping - extend current period.
                 $current['end'] = max($current['end'], $periods[$i]['end']);

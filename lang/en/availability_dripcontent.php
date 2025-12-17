@@ -145,7 +145,17 @@ Best regards,
 $string['notification_small'] = 'Content "{$a->activityname}" is now available';
 
 // Privacy.
-$string['privacy:metadata'] = 'The Drip Content availability condition does not store any personal data.';
+$string['privacy:metadata:availability_dripcontent_ntf'] = 'The Drip Content plugin stores information about which users have been notified about content unlocks.';
+$string['privacy:metadata:availability_dripcontent_ntf:userid'] = 'The ID of the user who was notified.';
+$string['privacy:metadata:availability_dripcontent_ntf:cmid'] = 'The ID of the course module that was unlocked.';
+$string['privacy:metadata:availability_dripcontent_ntf:timecreated'] = 'The time when the notification was sent.';
+
+// Maintenance settings.
+$string['settings_maintenance'] = 'Maintenance settings';
+$string['settings_maintenance_desc'] = 'Configure automatic cleanup of old notification records.';
+$string['notification_retention'] = 'Notification retention (days)';
+$string['notification_retention_desc'] = 'Number of days to keep notification records. Set to 0 to keep all records indefinitely. Default is 90 days.';
 
 // Task.
 $string['task_check_unlocks'] = 'Check for content unlocks and send notifications';
+$string['task_cleanup_notifications'] = 'Clean up old notification records';

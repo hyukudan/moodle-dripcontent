@@ -64,7 +64,7 @@ class check_unlocks extends \core\task\scheduled_task {
 
         mtrace('Checking for drip content unlocks...');
 
-        // Get all course modules with dripcontent availability.
+        // Get all course modules with dripcontent availability, grouped by course.
         $modules = $this->get_modules_with_dripcontent();
 
         if (empty($modules)) {
@@ -72,16 +72,32 @@ class check_unlocks extends \core\task\scheduled_task {
             return;
         }
 
-        mtrace('Found ' . count($modules) . ' modules with dripcontent conditions.');
+        // Group modules by course for efficient user fetching.
+        $coursemodules = [];
+        foreach ($modules as $cm) {
+            $coursemodules[$cm->course][] = $cm;
+        }
+
+        mtrace('Found ' . count($modules) . ' modules across ' . count($coursemodules) . ' courses.');
 
         $notificationssent = 0;
+        $errors = 0;
 
-        foreach ($modules as $cm) {
-            $notifications = $this->check_module_unlocks($cm, $method);
-            $notificationssent += $notifications;
+        foreach ($coursemodules as $courseid => $cms) {
+            try {
+                $notifications = $this->check_course_unlocks($courseid, $cms, $method);
+                $notificationssent += $notifications;
+            } catch (\Exception $e) {
+                $errors++;
+                mtrace("Error processing course $courseid: " . $e->getMessage());
+                // Continue with other courses despite error.
+            }
         }
 
         mtrace("Sent $notificationssent unlock notifications.");
+        if ($errors > 0) {
+            mtrace("Encountered $errors errors during processing.");
+        }
     }
 
     /**
@@ -93,60 +109,73 @@ class check_unlocks extends \core\task\scheduled_task {
         global $DB;
 
         // Find modules with dripcontent in their availability JSON.
+        // Note: The pattern is hardcoded and safe from injection.
         $sql = "SELECT cm.id, cm.course, cm.module, cm.instance, cm.availability, c.fullname as coursename
                 FROM {course_modules} cm
                 JOIN {course} c ON c.id = cm.course
                 WHERE cm.availability LIKE :pattern
                   AND cm.deletioninprogress = 0
-                  AND cm.visible = 1";
+                  AND cm.visible = 1
+                ORDER BY cm.course";
 
         return $DB->get_records_sql($sql, ['pattern' => '%"type":"dripcontent"%']);
     }
 
     /**
-     * Check for unlocks on a specific module and send notifications.
+     * Check for unlocks on all modules in a course and send notifications.
      *
-     * @param \stdClass $cm Course module record.
+     * This method fetches enrolled users once per course (not per module)
+     * to avoid N+1 query performance issues.
+     *
+     * @param int $courseid Course ID.
+     * @param array $cms Array of course module records.
      * @param string $method Notification method.
      * @return int Number of notifications sent.
      */
-    protected function check_module_unlocks($cm, $method) {
-        global $DB;
-
+    protected function check_course_unlocks($courseid, $cms, $method) {
         $notificationssent = 0;
 
-        // Get enrolled users in the course.
-        $context = \context_course::instance($cm->course);
+        // Get enrolled users once for the entire course.
+        $context = \context_course::instance($courseid);
         $users = get_enrolled_users($context, '', 0, 'u.id, u.firstname, u.lastname, u.email');
 
         if (empty($users)) {
             return 0;
         }
 
-        // Get the course module info.
-        $modinfo = get_fast_modinfo($cm->course);
-        if (!isset($modinfo->cms[$cm->id])) {
-            return 0;
-        }
+        // Get module info once for the course.
+        $modinfo = get_fast_modinfo($courseid);
 
-        $cminfo = $modinfo->cms[$cm->id];
-        $info = new \core_availability\info_module($cminfo);
+        foreach ($cms as $cm) {
+            try {
+                if (!isset($modinfo->cms[$cm->id])) {
+                    continue;
+                }
 
-        foreach ($users as $user) {
-            // Check if we already notified this user for this module.
-            $alreadynotified = $this->user_already_notified($user->id, $cm->id);
-            if ($alreadynotified) {
-                continue;
-            }
+                $cminfo = $modinfo->cms[$cm->id];
+                $info = new \core_availability\info_module($cminfo);
 
-            // Check if the module is now available for this user.
-            $available = $info->is_available($availabilityinfo, false, $user->id);
+                foreach ($users as $user) {
+                    // Check if we already notified this user for this module.
+                    if ($this->user_already_notified($user->id, $cm->id)) {
+                        continue;
+                    }
 
-            if ($available) {
-                // Send notification.
-                $this->send_notification($user, $cminfo, $cm->coursename, $method);
-                $this->mark_user_notified($user->id, $cm->id);
-                $notificationssent++;
+                    // Check if the module is now available for this user.
+                    // The first parameter receives availability info (not used here).
+                    $notused = null;
+                    $available = $info->is_available($notused, false, $user->id);
+
+                    if ($available) {
+                        // Send notification and mark as notified atomically.
+                        if ($this->send_and_mark_notification($user, $cminfo, $cm->coursename, $method, $cm->id)) {
+                            $notificationssent++;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                mtrace("Error processing module {$cm->id}: " . $e->getMessage());
+                // Continue with other modules despite error.
             }
         }
 
@@ -170,20 +199,45 @@ class check_unlocks extends \core\task\scheduled_task {
     }
 
     /**
-     * Mark user as notified for this module.
+     * Send notification and mark user as notified atomically.
      *
-     * @param int $userid User ID.
+     * Uses try/catch to handle race conditions where another process
+     * may have already inserted the notification record.
+     *
+     * @param \stdClass $user User object.
+     * @param \cm_info $cminfo Course module info.
+     * @param string $coursename Course name.
+     * @param string $method Notification method.
      * @param int $cmid Course module ID.
+     * @return bool True if notification was sent, false if already sent.
      */
-    protected function mark_user_notified($userid, $cmid) {
+    protected function send_and_mark_notification($user, $cminfo, $coursename, $method, $cmid) {
         global $DB;
 
+        // Try to insert first (atomic check-and-insert).
         $record = new \stdClass();
-        $record->userid = $userid;
+        $record->userid = $user->id;
         $record->cmid = $cmid;
         $record->timecreated = time();
 
-        $DB->insert_record('availability_dripcontent_ntf', $record);
+        try {
+            // This will fail if record already exists (unique index).
+            $DB->insert_record('availability_dripcontent_ntf', $record);
+        } catch (\dml_write_exception $e) {
+            // Record already exists - another process beat us to it.
+            return false;
+        }
+
+        // Record inserted successfully, now send notification.
+        try {
+            $this->send_notification($user, $cminfo, $coursename, $method);
+            return true;
+        } catch (\Exception $e) {
+            // Notification failed, but record is already inserted.
+            // This prevents retry spam. Log the error.
+            mtrace("Failed to send notification to user {$user->id} for module {$cmid}: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -195,9 +249,11 @@ class check_unlocks extends \core\task\scheduled_task {
      * @param string $method Notification method (email, popup, both).
      */
     protected function send_notification($user, $cminfo, $coursename, $method) {
-        global $CFG, $SITE;
+        global $SITE;
 
-        $activityname = $cminfo->name;
+        // Sanitize user-controlled data for safe display.
+        $activityname = format_string($cminfo->name);
+        $coursename = format_string($coursename);
         $url = new \moodle_url('/mod/' . $cminfo->modname . '/view.php', ['id' => $cminfo->id]);
 
         // Prepare message data.
@@ -216,7 +272,10 @@ class check_unlocks extends \core\task\scheduled_task {
         $message->subject = get_string('notification_subject', 'availability_dripcontent', $a);
         $message->fullmessage = get_string('notification_body', 'availability_dripcontent', $a);
         $message->fullmessageformat = FORMAT_PLAIN;
-        $message->fullmessagehtml = nl2br(get_string('notification_body', 'availability_dripcontent', $a));
+        $message->fullmessagehtml = format_text(
+            get_string('notification_body', 'availability_dripcontent', $a),
+            FORMAT_PLAIN
+        );
         $message->smallmessage = get_string('notification_small', 'availability_dripcontent', $a);
         $message->notification = 1;
         $message->contexturl = $url;

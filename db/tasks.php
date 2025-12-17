@@ -34,4 +34,13 @@ $tasks = [
         'month' => '*',
         'dayofweek' => '*',
     ],
+    [
+        'classname' => 'availability_dripcontent\task\cleanup_notifications',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '3',        // Run at 3:00 AM daily.
+        'day' => '*',
+        'month' => '*',
+        'dayofweek' => '*',
+    ],
 ];

@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2024121701;
+$plugin->version = 2025121701;
 $plugin->requires = 2024042200; // Moodle 4.4+
 $plugin->component = 'availability_dripcontent';
-$plugin->release = '1.1.0';
+$plugin->release = '1.2.0';
 $plugin->maturity = MATURITY_STABLE;
