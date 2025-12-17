@@ -1,0 +1,10 @@
+{
+  "name": "moodle-availability_dripcontent-form",
+  "builds": {
+    "moodle-availability_dripcontent-form": {
+      "jsfiles": [
+        "form.js"
+      ]
+    }
+  }
+}
