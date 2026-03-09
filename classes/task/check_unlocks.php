@@ -255,28 +255,65 @@ class check_unlocks extends \core\task\scheduled_task {
         $activityname = format_string($cminfo->name);
         $coursename = format_string($coursename);
         $url = new \moodle_url('/mod/' . $cminfo->modname . '/view.php', ['id' => $cminfo->id]);
+        $urlstr = $url->out(false);
+        $firstname = format_string($user->firstname);
 
-        // Prepare message data.
-        $a = new \stdClass();
-        $a->username = fullname($user);
-        $a->activityname = $activityname;
-        $a->coursename = $coursename;
-        $a->url = $url->out(false);
-        $a->sitename = format_string($SITE->fullname);
+        // Build subject.
+        $subject = "🔓 {$firstname}, nuevo contenido disponible: {$activityname}";
+
+        // Build plain text message.
+        $plaintext = "¡Hola {$firstname}!\n\n"
+            . "Se ha desbloqueado nuevo contenido en tu curso.\n\n"
+            . "📚 Actividad: {$activityname}\n"
+            . "🎓 Curso: {$coursename}\n\n"
+            . "¡Sigue avanzando! Cada paso te acerca más a tu objetivo.\n\n"
+            . "Accede ahora: {$urlstr}\n\n"
+            . "¡Mucho ánimo con tu preparación!\n"
+            . format_string($SITE->fullname);
+
+        // Build HTML message.
+        $usetemplate = class_exists('\local_achievements\email_template');
+
+        if ($usetemplate) {
+            $tpl = '\local_achievements\email_template';
+
+            $body = $tpl::text('🔓', 'center', false)
+                . $tpl::text("¡Hola {$firstname}!", 'center', true)
+                . $tpl::text('Se ha desbloqueado nuevo contenido en tu curso:', 'center', false)
+                . $tpl::highlight("📚 {$activityname}", '#e8f5e9')
+                . $tpl::text("🎓 Curso: {$coursename}", 'center', false)
+                . $tpl::text(
+                    '¡Sigue avanzando! Cada paso que das te acerca más a tu objetivo. '
+                    . 'No pierdas el impulso y continúa con tu preparación.',
+                    'center',
+                    false
+                );
+
+            $fullmessagehtml = $tpl::wrap(
+                'Nuevo contenido disponible',
+                $body,
+                $urlstr,
+                'Acceder ahora',
+                '#28a745'
+            );
+        } else {
+            // Fallback: simple HTML from plain text.
+            $fullmessagehtml = format_text($plaintext, FORMAT_PLAIN);
+        }
+
+        // Build small message for popup notifications.
+        $smallmessage = "🔓 {$activityname} ya está disponible en {$coursename}. ¡Accede ahora!";
 
         $message = new \core\message\message();
         $message->component = 'availability_dripcontent';
         $message->name = 'content_unlocked';
         $message->userfrom = \core_user::get_noreply_user();
         $message->userto = $user;
-        $message->subject = get_string('notification_subject', 'availability_dripcontent', $a);
-        $message->fullmessage = get_string('notification_body', 'availability_dripcontent', $a);
-        $message->fullmessageformat = FORMAT_PLAIN;
-        $message->fullmessagehtml = format_text(
-            get_string('notification_body', 'availability_dripcontent', $a),
-            FORMAT_PLAIN
-        );
-        $message->smallmessage = get_string('notification_small', 'availability_dripcontent', $a);
+        $message->subject = $subject;
+        $message->fullmessage = $plaintext;
+        $message->fullmessageformat = FORMAT_HTML;
+        $message->fullmessagehtml = $fullmessagehtml;
+        $message->smallmessage = $smallmessage;
         $message->notification = 1;
         $message->contexturl = $url;
         $message->contexturlname = $activityname;
