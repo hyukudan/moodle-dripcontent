@@ -57,6 +57,8 @@ class frontend extends \core_availability\frontend {
             'todate',
             'enrolmentmethods',
             'allenrolmentmethods',
+            'enrolinstances',
+            'enrolinstances_desc',
             'error_invalidvalue',
             'error_invaliddate',
             'error_dateorder',
@@ -92,8 +94,23 @@ class frontend extends \core_availability\frontend {
             }
         }
 
+        // Get all active enrol instances for this course with id, name, and enrol type.
+        $enrolinstances = [];
+        foreach ($instances as $instance) {
+            $displayname = $instance->name;
+            if (empty($displayname)) {
+                $plugin = enrol_get_plugin($instance->enrol);
+                $displayname = $plugin ? $plugin->get_instance_name($instance) : get_string('pluginname', 'enrol_' . $instance->enrol);
+            }
+            $enrolinstances[] = (object)[
+                'id' => (int)$instance->id,
+                'name' => $displayname,
+                'enrol' => $instance->enrol,
+            ];
+        }
+
         // Return as indexed array - each element becomes a parameter to initInner.
-        return [$enrolmethods];
+        return [$enrolmethods, $enrolinstances];
     }
 
     /**

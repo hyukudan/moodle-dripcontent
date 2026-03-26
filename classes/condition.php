@@ -59,6 +59,9 @@ class condition extends \core_availability\condition {
     /** @var array|null Enrolment methods to filter (null = all) */
     private $enrolmentmethods;
 
+    /** @var array|null Enrol instance IDs to filter (null = all). Takes priority over enrolmentmethods. */
+    private $enrolinstanceids;
+
     /** Mode constants */
     const MODE_COURSEDAYS = 'coursedays';
     const MODE_COURSESTARTDAYS = 'coursestartdays';
@@ -116,6 +119,16 @@ class condition extends \core_availability\condition {
         $this->enrolmentmethods = isset($structure->enrolmentmethods) && is_array($structure->enrolmentmethods)
             ? array_filter($structure->enrolmentmethods, 'is_string')
             : null;
+
+        // Validate enrol instance IDs array.
+        $this->enrolinstanceids = isset($structure->enrolinstanceids) && is_array($structure->enrolinstanceids)
+            ? array_map('intval', array_filter($structure->enrolinstanceids, function($v) {
+                return is_numeric($v) && (int)$v > 0;
+            }))
+            : null;
+        if (empty($this->enrolinstanceids)) {
+            $this->enrolinstanceids = null;
+        }
     }
 
     /**
@@ -142,6 +155,10 @@ class condition extends \core_availability\condition {
 
         if (!empty($this->enrolmentmethods)) {
             $data->enrolmentmethods = $this->enrolmentmethods;
+        }
+
+        if (!empty($this->enrolinstanceids)) {
+            $data->enrolinstanceids = array_values($this->enrolinstanceids);
         }
 
         return $data;
@@ -307,10 +324,15 @@ class condition extends \core_availability\condition {
             'userid' => $userid,
         ];
 
-        $methodfilter = '';
-        if (!empty($this->enrolmentmethods)) {
+        $enrolfilter = '';
+        if (!empty($this->enrolinstanceids)) {
+            // Instance IDs take priority over method names.
+            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
+            $enrolfilter = " AND ue.enrolid $insql";
+            $params = array_merge($params, $inparams);
+        } else if (!empty($this->enrolmentmethods)) {
             list($insql, $inparams) = $DB->get_in_or_equal($this->enrolmentmethods, SQL_PARAMS_NAMED);
-            $methodfilter = " AND e.enrol $insql";
+            $enrolfilter = " AND e.enrol $insql";
             $params = array_merge($params, $inparams);
         }
 
@@ -320,7 +342,7 @@ class condition extends \core_availability\condition {
                 WHERE e.courseid = :courseid
                   AND ue.userid = :userid
                   AND ue.timestart > 0
-                  $methodfilter";
+                  $enrolfilter";
 
         $result = $DB->get_record_sql($sql, $params);
 
@@ -346,10 +368,15 @@ class condition extends \core_availability\condition {
             'userid' => $userid,
         ];
 
-        $methodfilter = '';
-        if (!empty($this->enrolmentmethods)) {
+        $enrolfilter = '';
+        if (!empty($this->enrolinstanceids)) {
+            // Instance IDs take priority over method names.
+            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
+            $enrolfilter = " AND ue.enrolid $insql";
+            $params = array_merge($params, $inparams);
+        } else if (!empty($this->enrolmentmethods)) {
             list($insql, $inparams) = $DB->get_in_or_equal($this->enrolmentmethods, SQL_PARAMS_NAMED);
-            $methodfilter = " AND e.enrol $insql";
+            $enrolfilter = " AND e.enrol $insql";
             $params = array_merge($params, $inparams);
         }
 
@@ -360,7 +387,7 @@ class condition extends \core_availability\condition {
                 WHERE e.courseid = :courseid
                   AND ue.userid = :userid
                   AND ue.timestart > 0
-                  $methodfilter
+                  $enrolfilter
                 ORDER BY ue.timestart ASC";
 
         $enrolments = $DB->get_records_sql($sql, $params);
@@ -630,11 +657,46 @@ class condition extends \core_availability\condition {
                 $desc = '';
         }
 
+        // Append enrol instance names if filtering by specific instances.
+        if (!empty($this->enrolinstanceids) && $this->mode !== self::MODE_DATERANGE) {
+            $instancenames = $this->get_enrol_instance_names();
+            if (!empty($instancenames)) {
+                $desc .= ' (' . get_string('enrolinstances_in', 'availability_dripcontent',
+                    implode(', ', $instancenames)) . ')';
+            }
+        }
+
         if ($not) {
             $desc = get_string('not', 'availability') . ' ' . $desc;
         }
 
         return $desc;
+    }
+
+    /**
+     * Get display names for the configured enrol instance IDs.
+     *
+     * @return array Array of instance display names.
+     */
+    protected function get_enrol_instance_names() {
+        global $DB;
+
+        if (empty($this->enrolinstanceids)) {
+            return [];
+        }
+
+        list($insql, $params) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
+        $instances = $DB->get_records_select('enrol', "id $insql", $params);
+
+        $names = [];
+        foreach ($instances as $instance) {
+            if (!empty($instance->name)) {
+                $names[] = $instance->name;
+            } else {
+                $names[] = get_string('pluginname', 'enrol_' . $instance->enrol);
+            }
+        }
+        return $names;
     }
 
     /**

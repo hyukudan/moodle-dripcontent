@@ -57,6 +57,11 @@ $string['enrolmentmethods'] = 'Métodos de inscripción';
 $string['enrolmentmethods_help'] = 'Solo contar tiempo de estos métodos de inscripción. Dejar vacío para contar todos los métodos.';
 $string['allenrolmentmethods'] = 'Todos los métodos de inscripción';
 
+// Enrolment instances filter.
+$string['enrolinstances'] = 'Instancias de matriculación';
+$string['enrolinstances_desc'] = 'Solo contar tiempo de suscripción de estas instancias concretas';
+$string['enrolinstances_in'] = 'en {$a}';
+
 // Date range.
 $string['fromdate'] = 'Desde fecha';
 $string['todate'] = 'Hasta fecha';

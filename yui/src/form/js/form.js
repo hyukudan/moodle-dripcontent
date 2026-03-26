@@ -19,13 +19,22 @@ M.availability_dripcontent.form = Y.Object(M.core_availability.plugin);
 M.availability_dripcontent.form.enrolmentMethods = {};
 
 /**
+ * Enrolment instances available in the course.
+ * @property enrolInstances
+ * @type Array
+ */
+M.availability_dripcontent.form.enrolInstances = [];
+
+/**
  * Initialises this plugin.
  *
  * @method initInner
  * @param {Object} enrolmentmethods Enrolment methods available in course
+ * @param {Array} enrolinstances Enrolment instances available in course
  */
-M.availability_dripcontent.form.initInner = function(enrolmentmethods) {
+M.availability_dripcontent.form.initInner = function(enrolmentmethods, enrolinstances) {
     this.enrolmentMethods = enrolmentmethods || {};
+    this.enrolInstances = enrolinstances || [];
 };
 
 /**
@@ -43,6 +52,7 @@ M.availability_dripcontent.form.getNode = function(json) {
     var fromdate = json.fromdate || '';
     var todate = json.todate || '';
     var enrolmentmethods = json.enrolmentmethods || [];
+    var enrolinstanceids = json.enrolinstanceids || [];
 
     // Build HTML.
     var html = '<div class="availability-dripcontent">';
@@ -92,6 +102,23 @@ M.availability_dripcontent.form.getNode = function(json) {
             html += '<option value="' + key + '"' + selected + '>' +
                     this.enrolmentMethods[key] + '</option>';
         }
+    }
+    html += '</select></div></div>';
+
+    // Enrol instances row (for subscription mode - specific instances).
+    var instanceDisplay = (mode === 'subscriptiondays') ? 'flex' : 'none';
+    html += '<div class="form-group row mb-2 dripcontent-enrolinstances" style="display:' + instanceDisplay + '">';
+    html += '<label class="col-sm-4 col-form-label">' +
+            M.util.get_string('enrolinstances', 'availability_dripcontent') + '</label>';
+    html += '<div class="col-sm-8">';
+    html += '<small class="form-text text-muted mb-1">' +
+            M.util.get_string('enrolinstances_desc', 'availability_dripcontent') + '</small>';
+    html += '<select name="enrolinstanceids" class="form-control" multiple size="4">';
+    for (var i = 0; i < this.enrolInstances.length; i++) {
+        var inst = this.enrolInstances[i];
+        var instSelected = enrolinstanceids.indexOf(inst.id) !== -1 ? ' selected' : '';
+        html += '<option value="' + inst.id + '"' + instSelected + '>' +
+                inst.name + ' (' + inst.enrol + ')' + '</option>';
     }
     html += '</select></div></div>';
 
@@ -145,6 +172,10 @@ M.availability_dripcontent.form.getNode = function(json) {
         root.delegate('change', function() {
             M.core_availability.form.update();
         }, '.availability_dripcontent select[name=enrolmentmethods]');
+
+        root.delegate('change', function() {
+            M.core_availability.form.update();
+        }, '.availability_dripcontent select[name=enrolinstanceids]');
     }
 
     return node;
@@ -191,22 +222,32 @@ M.availability_dripcontent.form.updateVisibility = function(node) {
     var timeValueRow = node.one('.dripcontent-timevalue');
     var daterangeRows = node.all('.dripcontent-daterange');
     var enrolRow = node.one('.dripcontent-enrolmethods');
+    var instanceRow = node.one('.dripcontent-enrolinstances');
 
     if (mode === 'daterange') {
         timeValueRow.setStyle('display', 'none');
         enrolRow.setStyle('display', 'none');
+        if (instanceRow) {
+            instanceRow.setStyle('display', 'none');
+        }
         daterangeRows.each(function(row) {
             row.setStyle('display', 'flex');
         });
     } else if (mode === 'subscriptiondays') {
         timeValueRow.setStyle('display', 'flex');
         enrolRow.setStyle('display', 'flex');
+        if (instanceRow) {
+            instanceRow.setStyle('display', 'flex');
+        }
         daterangeRows.each(function(row) {
             row.setStyle('display', 'none');
         });
     } else {
         timeValueRow.setStyle('display', 'flex');
         enrolRow.setStyle('display', 'none');
+        if (instanceRow) {
+            instanceRow.setStyle('display', 'none');
+        }
         daterangeRows.each(function(row) {
             row.setStyle('display', 'none');
         });
@@ -238,7 +279,7 @@ M.availability_dripcontent.form.fillValue = function(value, node) {
         value.unit = node.one('select[name=unit]').get('value');
         value.value = parseInt(node.one('input[name=value]').get('value'), 10) || 0;
 
-        // For subscription mode, include enrolment methods if selected.
+        // For subscription mode, include enrolment methods and instance IDs if selected.
         if (mode === 'subscriptiondays') {
             var enrolSelect = node.one('select[name=enrolmentmethods]');
             var selectedMethods = [];
@@ -250,6 +291,20 @@ M.availability_dripcontent.form.fillValue = function(value, node) {
             });
             if (selectedMethods.length > 0) {
                 value.enrolmentmethods = selectedMethods;
+            }
+
+            var instanceSelect = node.one('select[name=enrolinstanceids]');
+            if (instanceSelect) {
+                var selectedInstances = [];
+                instanceSelect.all('option:checked').each(function(opt) {
+                    var val = parseInt(opt.get('value'), 10);
+                    if (val > 0) {
+                        selectedInstances.push(val);
+                    }
+                });
+                if (selectedInstances.length > 0) {
+                    value.enrolinstanceids = selectedInstances;
+                }
             }
         }
     }

@@ -57,6 +57,11 @@ $string['enrolmentmethods'] = 'Enrolment methods';
 $string['enrolmentmethods_help'] = 'Only count time from these enrolment methods. Leave empty to count all methods.';
 $string['allenrolmentmethods'] = 'All enrolment methods';
 
+// Enrolment instances filter.
+$string['enrolinstances'] = 'Enrolment instances';
+$string['enrolinstances_desc'] = 'Only count subscription time from these specific enrolment instances';
+$string['enrolinstances_in'] = 'in {$a}';
+
 // Date range.
 $string['fromdate'] = 'From date';
 $string['todate'] = 'To date';
