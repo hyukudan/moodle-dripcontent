@@ -64,6 +64,7 @@ class condition extends \core_availability\condition {
 
     /** Mode constants */
     const MODE_COURSEDAYS = 'coursedays';
+    const MODE_COURSEDAYS_WITHIN = 'coursedays_within';
     const MODE_COURSESTARTDAYS = 'coursestartdays';
     const MODE_SUBSCRIPTIONDAYS = 'subscriptiondays';
     const MODE_DATERANGE = 'daterange';
@@ -79,6 +80,7 @@ class condition extends \core_availability\condition {
     /** @var array Valid modes */
     const VALID_MODES = [
         self::MODE_COURSEDAYS,
+        self::MODE_COURSEDAYS_WITHIN,
         self::MODE_COURSESTARTDAYS,
         self::MODE_SUBSCRIPTIONDAYS,
         self::MODE_DATERANGE,
@@ -233,6 +235,9 @@ class condition extends \core_availability\condition {
             case self::MODE_COURSEDAYS:
                 return $this->check_enrolment_time($course->id, $userid, $now);
 
+            case self::MODE_COURSEDAYS_WITHIN:
+                return $this->check_enrolment_time_within($course->id, $userid, $now);
+
             case self::MODE_COURSESTARTDAYS:
                 return $this->check_course_start_time($course, $now);
 
@@ -267,6 +272,26 @@ class condition extends \core_availability\condition {
     }
 
     /**
+     * Check if user is WITHIN the first N days/weeks/months of enrolment.
+     * Inverse of check_enrolment_time: available DURING the window, not AFTER.
+     *
+     * @param int $courseid Course ID.
+     * @param int $userid User ID.
+     * @param int $now Current timestamp.
+     * @return bool True if within the time window.
+     */
+    protected function check_enrolment_time_within($courseid, $userid, $now) {
+        $firstenrol = $this->get_first_enrolment_time($courseid, $userid);
+
+        if (!$firstenrol) {
+            return false; // Not enrolled at all.
+        }
+
+        $deadline = $this->calculate_required_time($firstenrol);
+        return $now < $deadline; // Available while BEFORE the deadline.
+    }
+
+    /**
      * Check time since course start date.
      *
      * @param \stdClass $course Course object.
@@ -287,10 +312,56 @@ class condition extends \core_availability\condition {
      * @return bool True if enough active subscription time.
      */
     protected function check_subscription_time($courseid, $userid, $now) {
+        // Special case: value=0 means "must have an active subscription RIGHT NOW"
+        // (not "has accumulated 0+ seconds of subscription time", which is always true).
+        if ($this->value == 0) {
+            return $this->has_active_subscription_now($courseid, $userid, $now);
+        }
+
         $activeseconds = $this->calculate_active_subscription_seconds($courseid, $userid, $now);
         $requiredseconds = $this->get_required_seconds();
 
         return $activeseconds >= $requiredseconds;
+    }
+
+    /**
+     * Check if the user has an active subscription enrolment right now.
+     *
+     * @param int $courseid Course ID.
+     * @param int $userid User ID.
+     * @param int $now Current timestamp.
+     * @return bool True if user has an active matching enrolment.
+     */
+    protected function has_active_subscription_now($courseid, $userid, $now) {
+        global $DB;
+
+        $params = [
+            'courseid' => $courseid,
+            'userid' => $userid,
+            'now' => $now,
+        ];
+
+        $enrolfilter = '';
+        if (!empty($this->enrolinstanceids)) {
+            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
+            $enrolfilter = " AND ue.enrolid $insql";
+            $params = array_merge($params, $inparams);
+        } else if (!empty($this->enrolmentmethods)) {
+            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolmentmethods, SQL_PARAMS_NAMED);
+            $enrolfilter = " AND e.enrol $insql";
+            $params = array_merge($params, $inparams);
+        }
+
+        $sql = "SELECT COUNT(*)
+                FROM {user_enrolments} ue
+                JOIN {enrol} e ON e.id = ue.enrolid
+                WHERE e.courseid = :courseid
+                  AND ue.userid = :userid
+                  AND ue.status = 0
+                  AND (ue.timeend = 0 OR ue.timeend > :now)
+                  $enrolfilter";
+
+        return $DB->count_records_sql($sql, $params) > 0;
     }
 
     /**
@@ -636,6 +707,11 @@ class condition extends \core_availability\condition {
         switch ($this->mode) {
             case self::MODE_COURSEDAYS:
                 $key = $prefix . $this->unit . '_enrolment';
+                $desc = get_string($key, 'availability_dripcontent', $this->value);
+                break;
+
+            case self::MODE_COURSEDAYS_WITHIN:
+                $key = $prefix . $this->unit . '_enrolment_within';
                 $desc = get_string($key, 'availability_dripcontent', $this->value);
                 break;
 

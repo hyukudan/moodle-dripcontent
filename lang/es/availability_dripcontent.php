@@ -74,6 +74,11 @@ $string['full_days_enrolment'] = 'Disponible después de {$a} día(s) desde la i
 $string['full_weeks_enrolment'] = 'Disponible después de {$a} semana(s) desde la inscripción';
 $string['full_months_enrolment'] = 'Disponible después de {$a} mes(es) desde la inscripción';
 
+// Full descriptions - Enrolment within mode.
+$string['full_days_enrolment_within'] = 'Disponible durante los primeros {$a} día(s) desde la inscripción';
+$string['full_weeks_enrolment_within'] = 'Disponible durante las primeras {$a} semana(s) desde la inscripción';
+$string['full_months_enrolment_within'] = 'Disponible durante los primeros {$a} mes(es) desde la inscripción';
+
 // Full descriptions - Course start mode.
 $string['full_days_coursestart'] = 'Disponible después de {$a} día(s) desde el inicio del curso';
 $string['full_weeks_coursestart'] = 'Disponible después de {$a} semana(s) desde el inicio del curso';
@@ -94,6 +99,11 @@ $string['full_beforedate'] = 'Disponible hasta el {$a}';
 $string['short_days_enrolment'] = 'Después de {$a} días inscrito';
 $string['short_weeks_enrolment'] = 'Después de {$a} semanas inscrito';
 $string['short_months_enrolment'] = 'Después de {$a} meses inscrito';
+
+// Short descriptions - Enrolment within mode.
+$string['short_days_enrolment_within'] = 'Primeros {$a} días inscrito';
+$string['short_weeks_enrolment_within'] = 'Primeras {$a} semanas inscrito';
+$string['short_months_enrolment_within'] = 'Primeros {$a} meses inscrito';
 
 // Short descriptions - Course start mode.
 $string['short_days_coursestart'] = 'Después de {$a} días del inicio';

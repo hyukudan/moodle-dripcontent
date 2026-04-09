@@ -74,6 +74,11 @@ $string['full_days_enrolment'] = 'Available after {$a} day(s) since enrolment';
 $string['full_weeks_enrolment'] = 'Available after {$a} week(s) since enrolment';
 $string['full_months_enrolment'] = 'Available after {$a} month(s) since enrolment';
 
+// Full descriptions - Enrolment within mode.
+$string['full_days_enrolment_within'] = 'Available during the first {$a} day(s) since enrolment';
+$string['full_weeks_enrolment_within'] = 'Available during the first {$a} week(s) since enrolment';
+$string['full_months_enrolment_within'] = 'Available during the first {$a} month(s) since enrolment';
+
 // Full descriptions - Course start mode.
 $string['full_days_coursestart'] = 'Available after {$a} day(s) since course start';
 $string['full_weeks_coursestart'] = 'Available after {$a} week(s) since course start';
@@ -94,6 +99,11 @@ $string['full_beforedate'] = 'Available until {$a}';
 $string['short_days_enrolment'] = 'After {$a} days enrolled';
 $string['short_weeks_enrolment'] = 'After {$a} weeks enrolled';
 $string['short_months_enrolment'] = 'After {$a} months enrolled';
+
+// Short descriptions - Enrolment within mode.
+$string['short_days_enrolment_within'] = 'First {$a} days enrolled';
+$string['short_weeks_enrolment_within'] = 'First {$a} weeks enrolled';
+$string['short_months_enrolment_within'] = 'First {$a} months enrolled';
 
 // Short descriptions - Course start mode.
 $string['short_days_coursestart'] = 'After {$a} days from start';
