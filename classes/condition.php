@@ -645,8 +645,12 @@ class condition extends \core_availability\condition {
                 break;
 
             case self::MODE_SUBSCRIPTIONDAYS:
-                $key = $prefix . $this->unit . '_subscription';
-                $desc = get_string($key, 'availability_dripcontent', $this->value);
+                if ($this->value == 0) {
+                    $desc = get_string($prefix . 'subscription_required', 'availability_dripcontent');
+                } else {
+                    $key = $prefix . $this->unit . '_subscription';
+                    $desc = get_string($key, 'availability_dripcontent', $this->value);
+                }
                 break;
 
             case self::MODE_DATERANGE:

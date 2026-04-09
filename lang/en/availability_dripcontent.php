@@ -80,6 +80,7 @@ $string['full_weeks_coursestart'] = 'Available after {$a} week(s) since course s
 $string['full_months_coursestart'] = 'Available after {$a} month(s) since course start';
 
 // Full descriptions - Subscription mode.
+$string['full_subscription_required'] = 'This content requires an active course enrolment. Enrol to access the full syllabus, tests and materials.';
 $string['full_days_subscription'] = 'Available after {$a} day(s) of active subscription';
 $string['full_weeks_subscription'] = 'Available after {$a} week(s) of active subscription';
 $string['full_months_subscription'] = 'Available after {$a} month(s) of active subscription';
@@ -100,6 +101,7 @@ $string['short_weeks_coursestart'] = 'After {$a} weeks from start';
 $string['short_months_coursestart'] = 'After {$a} months from start';
 
 // Short descriptions - Subscription mode.
+$string['short_subscription_required'] = 'Requires active subscription';
 $string['short_days_subscription'] = 'After {$a} days subscribed';
 $string['short_weeks_subscription'] = 'After {$a} weeks subscribed';
 $string['short_months_subscription'] = 'After {$a} months subscribed';

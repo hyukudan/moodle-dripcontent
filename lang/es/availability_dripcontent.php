@@ -80,6 +80,7 @@ $string['full_weeks_coursestart'] = 'Disponible después de {$a} semana(s) desde
 $string['full_months_coursestart'] = 'Disponible después de {$a} mes(es) desde el inicio del curso';
 
 // Full descriptions - Subscription mode.
+$string['full_subscription_required'] = 'Este contenido requiere estar matriculado en el curso. Matricúlate para acceder a todo el temario, tests y materiales.';
 $string['full_days_subscription'] = 'Disponible después de {$a} día(s) de suscripción activa';
 $string['full_weeks_subscription'] = 'Disponible después de {$a} semana(s) de suscripción activa';
 $string['full_months_subscription'] = 'Disponible después de {$a} mes(es) de suscripción activa';
@@ -100,6 +101,7 @@ $string['short_weeks_coursestart'] = 'Después de {$a} semanas del inicio';
 $string['short_months_coursestart'] = 'Después de {$a} meses del inicio';
 
 // Short descriptions - Subscription mode.
+$string['short_subscription_required'] = 'Requiere suscripción activa';
 $string['short_days_subscription'] = 'Después de {$a} días suscrito';
 $string['short_weeks_subscription'] = 'Después de {$a} semanas suscrito';
 $string['short_months_subscription'] = 'Después de {$a} meses suscrito';
