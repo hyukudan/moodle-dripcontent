@@ -146,6 +146,8 @@ $string['notify_method_none'] = 'Sin notificaciones';
 $string['notify_method_email'] = 'Solo correo electrónico';
 $string['notify_method_popup'] = 'Solo notificación en la plataforma';
 $string['notify_method_both'] = 'Correo electrónico y notificación en la plataforma';
+$string['pacing_usec'] = 'Microsegundos entre envíos';
+$string['pacing_usec_desc'] = 'Pausa entre cada email durante el cron de notificaciones de desbloqueo. 1500000 = 1,5 segundos (recomendado). Pon 0 para desactivar. Evita ráfagas sub-segundo que históricamente dispararon los bloqueos S3115/S3140 de Microsoft.';
 
 // Notification messages.
 $string['notification_subject'] = 'Nuevo contenido disponible: {$a->activityname}';

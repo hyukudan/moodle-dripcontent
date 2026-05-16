@@ -59,6 +59,15 @@ class check_unlocks extends \core\task\scheduled_task {
             return;
         }
 
+        // Pause between deliveries to avoid SMTP bursts (lessons learned: Microsoft
+        // S3115 throttle escalated to S3140 blocklist after sub-second bursts on
+        // Monday mornings). Configurable via the pacing_usec setting; 1.5s default.
+        // 0 is a valid value (disable pacing); get_config returns false when the
+        // setting hasn't been initialised yet, so we check explicitly to keep that
+        // distinction.
+        $pacingraw = get_config('availability_dripcontent', 'pacing_usec');
+        $pacingusec = ($pacingraw === false) ? 1500000 : (int)$pacingraw;
+
         require_once($CFG->dirroot . '/availability/classes/info.php');
         require_once($CFG->dirroot . '/availability/classes/info_module.php');
 
@@ -85,7 +94,7 @@ class check_unlocks extends \core\task\scheduled_task {
 
         foreach ($coursemodules as $courseid => $cms) {
             try {
-                $notifications = $this->check_course_unlocks($courseid, $cms, $method);
+                $notifications = $this->check_course_unlocks($courseid, $cms, $method, $pacingusec);
                 $notificationssent += $notifications;
             } catch (\Exception $e) {
                 $errors++;
@@ -130,9 +139,10 @@ class check_unlocks extends \core\task\scheduled_task {
      * @param int $courseid Course ID.
      * @param array $cms Array of course module records.
      * @param string $method Notification method.
+     * @param int $pacingusec Microseconds to sleep after each sent email (0 to disable).
      * @return int Number of notifications sent.
      */
-    protected function check_course_unlocks($courseid, $cms, $method) {
+    protected function check_course_unlocks($courseid, $cms, $method, $pacingusec = 0) {
         $notificationssent = 0;
 
         // Get enrolled users once for the entire course.
@@ -170,6 +180,12 @@ class check_unlocks extends \core\task\scheduled_task {
                         // Send notification and mark as notified atomically.
                         if ($this->send_and_mark_notification($user, $cminfo, $cm->coursename, $method, $cm->id)) {
                             $notificationssent++;
+                            // Pace deliveries to avoid SMTP bursts (Microsoft S3115/S3140).
+                            // Only sleep when an email actually went out — skipping
+                            // already-notified or non-available users incurs no SMTP cost.
+                            if ($pacingusec > 0) {
+                                usleep($pacingusec);
+                            }
                         }
                     }
                 }

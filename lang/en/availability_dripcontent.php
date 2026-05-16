@@ -146,6 +146,8 @@ $string['notify_method_none'] = 'No notifications';
 $string['notify_method_email'] = 'Email only';
 $string['notify_method_popup'] = 'Platform notification only';
 $string['notify_method_both'] = 'Email and platform notification';
+$string['pacing_usec'] = 'Microseconds between deliveries';
+$string['pacing_usec_desc'] = 'Pause inserted between each email during the unlock notification cron task. 1500000 = 1.5 seconds (recommended). Set to 0 to disable. Prevents sub-second SMTP bursts that have historically triggered Microsoft S3115/S3140 blocklists.';
 
 // Notification messages.
 $string['notification_subject'] = 'New content available: {$a->activityname}';

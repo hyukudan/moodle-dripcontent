@@ -56,6 +56,15 @@ if ($ADMIN->fulltree) {
         $notifymethods
     ));
 
+    // Pacing between email deliveries (microseconds).
+    $settings->add(new admin_setting_configtext(
+        'availability_dripcontent/pacing_usec',
+        get_string('pacing_usec', 'availability_dripcontent'),
+        get_string('pacing_usec_desc', 'availability_dripcontent'),
+        '1500000',
+        PARAM_INT
+    ));
+
     // Maintenance settings header.
     $settings->add(new admin_setting_heading(
         'availability_dripcontent/maintenanceheader',
