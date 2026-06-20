@@ -145,9 +145,10 @@ class check_unlocks extends \core\task\scheduled_task {
     protected function check_course_unlocks($courseid, $cms, $method, $pacingusec = 0) {
         $notificationssent = 0;
 
-        // Get enrolled users once for the entire course.
+        // Get enrolled users once for the entire course. onlyactive=true so suspended
+        // enrolments are not emailed "content unlocked" for content they cannot access.
         $context = \context_course::instance($courseid);
-        $users = get_enrolled_users($context, '', 0, 'u.id, u.firstname, u.lastname, u.email');
+        $users = get_enrolled_users($context, '', 0, 'u.id, u.firstname, u.lastname, u.email', null, 0, 0, true);
 
         if (empty($users)) {
             return 0;

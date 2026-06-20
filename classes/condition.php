@@ -376,11 +376,28 @@ class condition extends \core_availability\condition {
     protected function get_first_enrolment_time($courseid, $userid) {
         $minstart = null;
         foreach ($this->filter_enrolments($this->get_course_user_enrolments($courseid, $userid)) as $ue) {
-            if ($ue->timestart > 0 && ($minstart === null || $ue->timestart < $minstart)) {
-                $minstart = (int)$ue->timestart;
+            $start = self::effective_start($ue);
+            if ($start > 0 && ($minstart === null || $start < $minstart)) {
+                $minstart = $start;
             }
         }
         return $minstart;
+    }
+
+    /**
+     * Effective start of an enrolment for drip calculations: the enrolment start date,
+     * falling back to its creation date when timestart is 0 (an enrolment with no explicit
+     * start is valid from creation). Mirrors Moodle core duration logic, so users enrolled
+     * with timestart=0 are not treated as "never enrolled".
+     *
+     * @param \stdClass $ue Enrolment row (timestart, timecreated).
+     * @return int Effective start timestamp (0 if unknown).
+     */
+    protected static function effective_start($ue) {
+        if (!empty($ue->timestart)) {
+            return (int)$ue->timestart;
+        }
+        return isset($ue->timecreated) ? (int)$ue->timecreated : 0;
     }
 
     /**
@@ -397,7 +414,7 @@ class condition extends \core_availability\condition {
 
         $key = $courseid . ':' . $userid;
         if (!array_key_exists($key, self::$enrolmentcache)) {
-            $sql = "SELECT ue.id, ue.enrolid, ue.timestart, ue.timeend, ue.status, e.enrol
+            $sql = "SELECT ue.id, ue.enrolid, ue.timestart, ue.timeend, ue.status, ue.timecreated, e.enrol
                       FROM {user_enrolments} ue
                       JOIN {enrol} e ON e.id = ue.enrolid
                      WHERE e.courseid = :courseid
@@ -443,7 +460,7 @@ class condition extends \core_availability\condition {
     public static function preload_course_enrolments($courseid) {
         global $DB;
 
-        $sql = "SELECT ue.id, ue.userid, ue.enrolid, ue.timestart, ue.timeend, ue.status, e.enrol
+        $sql = "SELECT ue.id, ue.userid, ue.enrolid, ue.timestart, ue.timeend, ue.status, ue.timecreated, e.enrol
                   FROM {user_enrolments} ue
                   JOIN {enrol} e ON e.id = ue.enrolid
                  WHERE e.courseid = :courseid";
@@ -496,7 +513,7 @@ class condition extends \core_availability\condition {
         // Reuse the per-request enrolment cache; merge_periods() sorts, so no ORDER BY needed.
         $enrolments = [];
         foreach ($this->filter_enrolments($this->get_course_user_enrolments($courseid, $userid)) as $ue) {
-            if ($ue->timestart > 0) {
+            if (self::effective_start($ue) > 0) {
                 $enrolments[] = $ue;
             }
         }
@@ -508,7 +525,7 @@ class condition extends \core_availability\condition {
         // Merge overlapping periods and sum active time.
         $periods = [];
         foreach ($enrolments as $enrol) {
-            $start = (int)$enrol->timestart;
+            $start = self::effective_start($enrol);
             // If timeend is 0 or in the future, use current time as end (if active).
             // If status is not 0 (suspended), the enrolment is not active.
             if ($enrol->status != 0) {

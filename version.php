@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2026062000;
+$plugin->version = 2026062001;
 $plugin->requires = 2024042200; // Moodle 4.4+
 $plugin->component = 'availability_dripcontent';
-$plugin->release = '1.3.2'; // Per-request enrolment cache (kills N+1 in availability eval) + timecreated index for cleanup.
+$plugin->release = '1.3.3'; // timestart=0 falls back to timecreated; cron skips suspended enrolments.
 $plugin->maturity = MATURITY_STABLE;
