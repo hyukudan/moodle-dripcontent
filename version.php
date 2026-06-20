@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2026051601;
+$plugin->version = 2026062000;
 $plugin->requires = 2024042200; // Moodle 4.4+
 $plugin->component = 'availability_dripcontent';
-$plugin->release = '1.3.1'; // Configurable pacing_usec between unlock notifications to avoid SMTP bursts (Microsoft S3115/S3140)
+$plugin->release = '1.3.2'; // Per-request enrolment cache (kills N+1 in availability eval) + timecreated index for cleanup.
 $plugin->maturity = MATURITY_STABLE;

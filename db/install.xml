@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="availability/condition/dripcontent/db" VERSION="20241217" COMMENT="XMLDB file for availability_dripcontent">
+<XMLDB PATH="availability/condition/dripcontent/db" VERSION="20260620" COMMENT="XMLDB file for availability_dripcontent">
   <TABLES>
     <TABLE NAME="availability_dripcontent_ntf" COMMENT="Tracks which users have been notified about content unlocks">
       <FIELDS>
@@ -15,6 +15,7 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="userid_cmid" UNIQUE="true" FIELDS="userid, cmid" COMMENT="Ensure one notification per user per module"/>
+        <INDEX NAME="timecreated" UNIQUE="false" FIELDS="timecreated" COMMENT="Speeds the dated cleanup of expired notification rows"/>
       </INDEXES>
     </TABLE>
   </TABLES>

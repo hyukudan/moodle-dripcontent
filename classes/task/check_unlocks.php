@@ -156,62 +156,85 @@ class check_unlocks extends \core\task\scheduled_task {
         // Get module info once for the course.
         $modinfo = get_fast_modinfo($courseid);
 
-        foreach ($cms as $cm) {
-            try {
-                if (!isset($modinfo->cms[$cm->id])) {
-                    continue;
-                }
+        try {
+            // Preload all enrolments for the course in one query (seeds the per-(course,user)
+            // cache used by the dripcontent conditions), and preload the already-notified set
+            // so the inner loop avoids a record_exists() per (user, module). Inside the try so
+            // the finally below always releases the cache, even if a preload throws.
+            \availability_dripcontent\condition::preload_course_enrolments($courseid);
+            $notified = $this->get_notified_set(array_map(function($cm) {
+                return $cm->id;
+            }, $cms));
 
-                $cminfo = $modinfo->cms[$cm->id];
-                $info = new \core_availability\info_module($cminfo);
-
-                foreach ($users as $user) {
-                    // Check if we already notified this user for this module.
-                    if ($this->user_already_notified($user->id, $cm->id)) {
+            foreach ($cms as $cm) {
+                try {
+                    if (!isset($modinfo->cms[$cm->id])) {
                         continue;
                     }
 
-                    // Check if the module is now available for this user.
-                    // The first parameter receives availability info (not used here).
-                    $notused = null;
-                    $available = $info->is_available($notused, false, $user->id);
+                    $cminfo = $modinfo->cms[$cm->id];
+                    $info = new \core_availability\info_module($cminfo);
 
-                    if ($available) {
-                        // Send notification and mark as notified atomically.
-                        if ($this->send_and_mark_notification($user, $cminfo, $cm->coursename, $method, $cm->id)) {
-                            $notificationssent++;
-                            // Pace deliveries to avoid SMTP bursts (Microsoft S3115/S3140).
-                            // Only sleep when an email actually went out — skipping
-                            // already-notified or non-available users incurs no SMTP cost.
-                            if ($pacingusec > 0) {
-                                usleep($pacingusec);
+                    foreach ($users as $user) {
+                        // Check if we already notified this user for this module.
+                        if (isset($notified[$user->id . ':' . $cm->id])) {
+                            continue;
+                        }
+
+                        // Check if the module is now available for this user.
+                        // The first parameter receives availability info (not used here).
+                        $notused = null;
+                        $available = $info->is_available($notused, false, $user->id);
+
+                        if ($available) {
+                            // Send notification and mark as notified atomically.
+                            if ($this->send_and_mark_notification($user, $cminfo, $cm->coursename, $method, $cm->id)) {
+                                $notificationssent++;
+                                // Pace deliveries to avoid SMTP bursts (Microsoft S3115/S3140).
+                                // Only sleep when an email actually went out — skipping
+                                // already-notified or non-available users incurs no SMTP cost.
+                                if ($pacingusec > 0) {
+                                    usleep($pacingusec);
+                                }
                             }
                         }
                     }
+                } catch (\Exception $e) {
+                    mtrace("Error processing module {$cm->id}: " . $e->getMessage());
+                    // Continue with other modules despite error.
                 }
-            } catch (\Exception $e) {
-                mtrace("Error processing module {$cm->id}: " . $e->getMessage());
-                // Continue with other modules despite error.
             }
+        } finally {
+            // Full reset between courses: frees this course's enrolment cache (memory) and
+            // refreshes the request-stable clock so a long cron does not evaluate later
+            // courses against a stale "now".
+            \availability_dripcontent\condition::reset_request_cache();
         }
 
         return $notificationssent;
     }
 
     /**
-     * Check if user was already notified for this module.
+     * Build a set of "userid:cmid" strings for notifications already sent for the given
+     * modules, in a single query (replaces a per-pair record_exists()).
      *
-     * @param int $userid User ID.
-     * @param int $cmid Course module ID.
-     * @return bool True if already notified.
+     * @param array $cmids Course module IDs.
+     * @return array Keys "userid:cmid" => true.
      */
-    protected function user_already_notified($userid, $cmid) {
+    protected function get_notified_set(array $cmids) {
         global $DB;
 
-        return $DB->record_exists('availability_dripcontent_ntf', [
-            'userid' => $userid,
-            'cmid' => $cmid,
-        ]);
+        if (empty($cmids)) {
+            return [];
+        }
+        list($insql, $params) = $DB->get_in_or_equal($cmids, SQL_PARAMS_NAMED);
+        $rs = $DB->get_recordset_select('availability_dripcontent_ntf', "cmid $insql", $params, '', 'id, userid, cmid');
+        $set = [];
+        foreach ($rs as $r) {
+            $set[$r->userid . ':' . $r->cmid] = true;
+        }
+        $rs->close();
+        return $set;
     }
 
     /**

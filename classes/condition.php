@@ -62,6 +62,15 @@ class condition extends \core_availability\condition {
     /** @var array|null Enrol instance IDs to filter (null = all). Takes priority over enrolmentmethods. */
     private $enrolinstanceids;
 
+    /** @var array Per-request cache: ["courseid:userid" => enrolment rows]. Avoids N+1 across CMs/sections. */
+    protected static $enrolmentcache = [];
+
+    /** @var array Per-request cache: [enrol instance id => display name]. */
+    protected static $enrolnamescache = [];
+
+    /** @var int|null Stable "now" for the whole request (consistent evaluation + better cache reuse). */
+    protected static $requesttime = null;
+
     /** Mode constants */
     const MODE_COURSEDAYS = 'coursedays';
     const MODE_COURSEDAYS_WITHIN = 'coursedays_within';
@@ -333,35 +342,12 @@ class condition extends \core_availability\condition {
      * @return bool True if user has an active matching enrolment.
      */
     protected function has_active_subscription_now($courseid, $userid, $now) {
-        global $DB;
-
-        $params = [
-            'courseid' => $courseid,
-            'userid' => $userid,
-            'now' => $now,
-        ];
-
-        $enrolfilter = '';
-        if (!empty($this->enrolinstanceids)) {
-            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
-            $enrolfilter = " AND ue.enrolid $insql";
-            $params = array_merge($params, $inparams);
-        } else if (!empty($this->enrolmentmethods)) {
-            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolmentmethods, SQL_PARAMS_NAMED);
-            $enrolfilter = " AND e.enrol $insql";
-            $params = array_merge($params, $inparams);
+        foreach ($this->filter_enrolments($this->get_course_user_enrolments($courseid, $userid)) as $ue) {
+            if ((int)$ue->status === 0 && ($ue->timeend == 0 || $ue->timeend > $now)) {
+                return true;
+            }
         }
-
-        $sql = "SELECT COUNT(*)
-                FROM {user_enrolments} ue
-                JOIN {enrol} e ON e.id = ue.enrolid
-                WHERE e.courseid = :courseid
-                  AND ue.userid = :userid
-                  AND ue.status = 0
-                  AND (ue.timeend = 0 OR ue.timeend > :now)
-                  $enrolfilter";
-
-        return $DB->count_records_sql($sql, $params) > 0;
+        return false;
     }
 
     /**
@@ -388,36 +374,111 @@ class condition extends \core_availability\condition {
      * @return int|null Unix timestamp or null if not enrolled.
      */
     protected function get_first_enrolment_time($courseid, $userid) {
+        $minstart = null;
+        foreach ($this->filter_enrolments($this->get_course_user_enrolments($courseid, $userid)) as $ue) {
+            if ($ue->timestart > 0 && ($minstart === null || $ue->timestart < $minstart)) {
+                $minstart = (int)$ue->timestart;
+            }
+        }
+        return $minstart;
+    }
+
+    /**
+     * Load (once per request) the user's enrolment rows for a course, UNFILTERED by enrol
+     * method/instance so several dripcontent conditions on the same course can share the set.
+     * This collapses the previous per-CM/per-section N+1 into one query per (course, user).
+     *
+     * @param int $courseid Course ID.
+     * @param int $userid User ID.
+     * @return array Enrolment row objects (id, enrolid, timestart, timeend, status, enrol).
+     */
+    protected function get_course_user_enrolments($courseid, $userid) {
         global $DB;
 
-        $params = [
-            'courseid' => $courseid,
-            'userid' => $userid,
-        ];
-
-        $enrolfilter = '';
-        if (!empty($this->enrolinstanceids)) {
-            // Instance IDs take priority over method names.
-            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
-            $enrolfilter = " AND ue.enrolid $insql";
-            $params = array_merge($params, $inparams);
-        } else if (!empty($this->enrolmentmethods)) {
-            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolmentmethods, SQL_PARAMS_NAMED);
-            $enrolfilter = " AND e.enrol $insql";
-            $params = array_merge($params, $inparams);
+        $key = $courseid . ':' . $userid;
+        if (!array_key_exists($key, self::$enrolmentcache)) {
+            $sql = "SELECT ue.id, ue.enrolid, ue.timestart, ue.timeend, ue.status, e.enrol
+                      FROM {user_enrolments} ue
+                      JOIN {enrol} e ON e.id = ue.enrolid
+                     WHERE e.courseid = :courseid
+                       AND ue.userid = :userid";
+            self::$enrolmentcache[$key] = $DB->get_records_sql($sql, [
+                'courseid' => $courseid,
+                'userid' => $userid,
+            ]);
         }
+        return self::$enrolmentcache[$key];
+    }
 
-        $sql = "SELECT MIN(ue.timestart) as firstenrol
-                FROM {user_enrolments} ue
-                JOIN {enrol} e ON e.id = ue.enrolid
-                WHERE e.courseid = :courseid
-                  AND ue.userid = :userid
-                  AND ue.timestart > 0
-                  $enrolfilter";
+    /**
+     * Apply this condition's enrol instance / method filter to a set of enrolment rows.
+     * enrolinstanceids takes precedence over enrolmentmethods (mirrors the original SQL).
+     *
+     * @param array $rows Enrolment rows from {@see get_course_user_enrolments()}.
+     * @return array Filtered rows.
+     */
+    protected function filter_enrolments(array $rows) {
+        if (!empty($this->enrolinstanceids)) {
+            $ids = array_map('intval', $this->enrolinstanceids);
+            return array_filter($rows, function($ue) use ($ids) {
+                return in_array((int)$ue->enrolid, $ids, true);
+            });
+        }
+        if (!empty($this->enrolmentmethods)) {
+            $methods = $this->enrolmentmethods;
+            return array_filter($rows, function($ue) use ($methods) {
+                return in_array($ue->enrol, $methods, true);
+            });
+        }
+        return $rows;
+    }
 
-        $result = $DB->get_record_sql($sql, $params);
+    /**
+     * Bulk-load every enrolment of a course for ALL users in a single query and seed the
+     * per-(course,user) cache. Intended for the notification cron, which evaluates many
+     * users for the same course: turns O(users) lookups into one query.
+     *
+     * @param int $courseid Course ID.
+     */
+    public static function preload_course_enrolments($courseid) {
+        global $DB;
 
-        return $result && $result->firstenrol ? (int)$result->firstenrol : null;
+        $sql = "SELECT ue.id, ue.userid, ue.enrolid, ue.timestart, ue.timeend, ue.status, e.enrol
+                  FROM {user_enrolments} ue
+                  JOIN {enrol} e ON e.id = ue.enrolid
+                 WHERE e.courseid = :courseid";
+        $rows = $DB->get_records_sql($sql, ['courseid' => $courseid]);
+
+        $byuser = [];
+        foreach ($rows as $r) {
+            $byuser[$r->userid][$r->id] = $r;
+        }
+        foreach ($byuser as $userid => $urows) {
+            self::$enrolmentcache[$courseid . ':' . $userid] = $urows;
+        }
+    }
+
+    /**
+     * Reset the per-request caches. Intended for long-running processes (e.g. the
+     * notification cron) that iterate many courses and must not accumulate memory.
+     *
+     * @param int|null $courseid If given, only drop that course's enrolment entries.
+     */
+    public static function reset_request_cache(?int $courseid = null) {
+        if ($courseid === null) {
+            // Full reset: also clears the resolved-name cache and the request-stable
+            // clock so long-running processes (cron) and PHPUnit start fresh.
+            self::$enrolmentcache = [];
+            self::$enrolnamescache = [];
+            self::$requesttime = null;
+            return;
+        }
+        $prefix = $courseid . ':';
+        foreach (array_keys(self::$enrolmentcache) as $key) {
+            if (strpos($key, $prefix) === 0) {
+                unset(self::$enrolmentcache[$key]);
+            }
+        }
     }
 
     /**
@@ -432,36 +493,13 @@ class condition extends \core_availability\condition {
      * @return int Total active seconds.
      */
     protected function calculate_active_subscription_seconds($courseid, $userid, $now) {
-        global $DB;
-
-        $params = [
-            'courseid' => $courseid,
-            'userid' => $userid,
-        ];
-
-        $enrolfilter = '';
-        if (!empty($this->enrolinstanceids)) {
-            // Instance IDs take priority over method names.
-            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
-            $enrolfilter = " AND ue.enrolid $insql";
-            $params = array_merge($params, $inparams);
-        } else if (!empty($this->enrolmentmethods)) {
-            list($insql, $inparams) = $DB->get_in_or_equal($this->enrolmentmethods, SQL_PARAMS_NAMED);
-            $enrolfilter = " AND e.enrol $insql";
-            $params = array_merge($params, $inparams);
+        // Reuse the per-request enrolment cache; merge_periods() sorts, so no ORDER BY needed.
+        $enrolments = [];
+        foreach ($this->filter_enrolments($this->get_course_user_enrolments($courseid, $userid)) as $ue) {
+            if ($ue->timestart > 0) {
+                $enrolments[] = $ue;
+            }
         }
-
-        // Get all enrolment periods for the user in this course.
-        $sql = "SELECT ue.id, ue.timestart, ue.timeend, ue.status
-                FROM {user_enrolments} ue
-                JOIN {enrol} e ON e.id = ue.enrolid
-                WHERE e.courseid = :courseid
-                  AND ue.userid = :userid
-                  AND ue.timestart > 0
-                  $enrolfilter
-                ORDER BY ue.timestart ASC";
-
-        $enrolments = $DB->get_records_sql($sql, $params);
 
         if (empty($enrolments)) {
             return 0;
@@ -765,15 +803,34 @@ class condition extends \core_availability\condition {
             return [];
         }
 
-        list($insql, $params) = $DB->get_in_or_equal($this->enrolinstanceids, SQL_PARAMS_NAMED);
-        $instances = $DB->get_records_select('enrol', "id $insql", $params);
+        // Resolve only the instance IDs not yet cached this request.
+        $missing = [];
+        foreach ($this->enrolinstanceids as $id) {
+            if (!array_key_exists((int)$id, self::$enrolnamescache)) {
+                $missing[] = (int)$id;
+            }
+        }
+        if (!empty($missing)) {
+            list($insql, $params) = $DB->get_in_or_equal($missing, SQL_PARAMS_NAMED);
+            $instances = $DB->get_records_select('enrol', "id $insql", $params);
+            foreach ($missing as $id) {
+                // Default to null so a missing instance is not re-queried.
+                self::$enrolnamescache[$id] = null;
+            }
+            foreach ($instances as $instance) {
+                if (!empty($instance->name)) {
+                    self::$enrolnamescache[(int)$instance->id] = $instance->name;
+                } else {
+                    self::$enrolnamescache[(int)$instance->id] = get_string('pluginname', 'enrol_' . $instance->enrol);
+                }
+            }
+        }
 
         $names = [];
-        foreach ($instances as $instance) {
-            if (!empty($instance->name)) {
-                $names[] = $instance->name;
-            } else {
-                $names[] = get_string('pluginname', 'enrol_' . $instance->enrol);
+        foreach ($this->enrolinstanceids as $id) {
+            $name = self::$enrolnamescache[(int)$id] ?? null;
+            if (!empty($name)) {
+                $names[] = $name;
             }
         }
         return $names;
@@ -819,7 +876,9 @@ class condition extends \core_availability\condition {
      * @return int Current timestamp.
      */
     protected static function get_time() {
-        return time();
+        // Stable per request: every condition on the page evaluates against the same
+        // instant (avoids off-by-seconds drift) and improves cache reuse.
+        return self::$requesttime ??= time();
     }
 
     /**
